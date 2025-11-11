@@ -17,13 +17,32 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install & Build
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Try Build (Auto-detect)
         run: |
-          npm install
-          npm run build
+          if [ -f "vite.config.ts" ] || [ -f "vite.config.js" ]; then
+            echo "Vite detected"
+            npm run build --if-present
+            echo "BUILD_DIR=dist" >> $GITHUB_ENV
+          elif [ -f "next.config.js" ]; then
+            echo "Next.js detected"
+            npm run build --if-present
+            npm run export --if-present
+            echo "BUILD_DIR=out" >> $GITHUB_ENV
+          else
+            echo "React or generic"
+            npm run build --if-present
+            if [ -d "build" ]; then
+              echo "BUILD_DIR=build" >> $GITHUB_ENV
+            else
+              echo "BUILD_DIR=dist" >> $GITHUB_ENV
+            fi
+          fi
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist   # أو ./build لو كان React
+          publish_dir: ${{ env.BUILD_DIR }}
